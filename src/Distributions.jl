@@ -61,6 +61,7 @@ export
 
     # distribution types
     Arcsine,
+    ArrayReshaped,
     Bernoulli,
     Beta,
     BetaBinomial,

@@ -37,7 +37,7 @@ const tests = [
     "mvtdist",
     "kolmogorov",
     "edgeworth",
-    "matrixreshaped",
+    "arrayreshaped",
     "matrixvariates",
     "vonmisesfisher",
     "conversion",
