@@ -75,6 +75,7 @@ const UnivariateDistribution{S<:ValueSupport}   = Distribution{Univariate,S}
 const MultivariateDistribution{S<:ValueSupport} = Distribution{Multivariate,S}
 const MatrixDistribution{S<:ValueSupport}       = Distribution{Matrixvariate,S}
 const NonMatrixDistribution = Union{UnivariateDistribution, MultivariateDistribution}
+const ArrayDistribution{S<:ValueSupport,N}      = Distribution{ArrayLikeVariate{N},S}
 
 const DiscreteDistribution{F<:VariateForm}   = Distribution{F,Discrete}
 const ContinuousDistribution{F<:VariateForm} = Distribution{F,Continuous}

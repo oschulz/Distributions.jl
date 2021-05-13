@@ -38,7 +38,7 @@ const tests = [
     "kolmogorov",
     "edgeworth",
     "arrayreshaped",
-    "matrixvariates",
+    "arrayvariates",
     "vonmisesfisher",
     "conversion",
     "convolution",

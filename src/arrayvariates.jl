@@ -2,35 +2,35 @@
 ##### Generic methods #####
 
 """
-    size(d::MatrixDistribution)
+    size(d::ArrayDistribution)
 
 Return the size of each sample from distribution `d`.
 """
-Base.size(d::MatrixDistribution)
+Base.size(d::ArrayDistribution)
 
-size(d::MatrixDistribution, i) = size(d)[i]
+size(d::ArrayDistribution, i) = size(d)[i]
 
 """
-    length(d::MatrixDistribution)
+    length(d::ArrayDistribution)
 
 The length (*i.e* number of elements) of each sample from the distribution `d`.
 """
-Base.length(d::MatrixDistribution)
+Base.length(d::ArrayDistribution)
 
 """
-    rank(d::MatrixDistribution)
+    rank(d::ArrayDistribution)
 
 The rank of each sample from the distribution `d`.
 """
-LinearAlgebra.rank(d::MatrixDistribution)
+LinearAlgebra.rank(d::ArrayDistribution)
 
 """
-    vec(d::MatrixDistribution)
+    vec(d::ArrayDistribution)
 
 If known, returns a `MultivariateDistribution` instance representing the
 distribution of vec(X), where X is a random matrix with distribution `d`.
 """
-Base.vec(d::MatrixDistribution)
+Base.vec(d::ArrayDistribution)
 
 """
     inv(d::MatrixDistribution)
@@ -41,24 +41,28 @@ distribution of inv(X), where X is a random matrix with distribution `d`.
 Base.inv(d::MatrixDistribution)
 
 """
-    mean(d::MatrixDistribution)
+    mean(d::ArrayDistribution)
 
 Return the mean matrix of `d`.
 """
-mean(d::MatrixDistribution)
+mean(d::ArrayDistribution)
 
 """
-    var(d::MatrixDistribution)
+    var(d::ArrayDistribution)
 
 Compute the matrix of element-wise variances for distribution `d`.
 """
+var(d::ArrayDistribution)
+
 var(d::MatrixDistribution) = ((n, p) = size(d); [var(d, i, j) for i in 1:n, j in 1:p])
 
 """
-    cov(d::MatrixDistribution)
+    cov(d::ArrayDistribution)
 
 Compute the covariance matrix for `vec(X)`, where `X` is a random matrix with distribution `d`.
 """
+cov(d::ArrayDistribution)
+
 function cov(d::MatrixDistribution, ::Val{true}=Val(true))
     M = length(d)
     V = zeros(partype(d), M, M)
@@ -74,22 +78,24 @@ function cov(d::MatrixDistribution, ::Val{true}=Val(true))
 end
 
 """
-    cov(d::MatrixDistribution, flattened = Val(false))
+    cov(d::ArrayDistribution{S,N}, flattened = Val(false))
 
-Compute the 4-dimensional array whose `(i, j, k, l)` element is `cov(X[i,j], X[k, l])`.
+Compute the `2N`-dimensional array whose `(i1, j1,..., i2,l2,...)` element is `cov(X[i1,j1,...], X[i2,j2,...])`.
 """
+cov(d::ArrayDistribution, ::Val{false})
+
 function cov(d::MatrixDistribution, ::Val{false})
     n, p = size(d)
     [cov(d, i, j, k, l) for i in 1:n, j in 1:p, k in 1:n, l in 1:p]
 end
 
 """
-    _rand!(::AbstractRNG, ::MatrixDistribution, A::AbstractMatrix)
+    _rand!(::AbstractRNG, ::ArrayDistribution, A::AbstractMatrix)
 
 Sample the matrix distribution and store the result in `A`.
 Must be implemented by matrix-variate distributions.
 """
-_rand!(::AbstractRNG, ::MatrixDistribution, A::AbstractMatrix)
+_rand!(::AbstractRNG, ::ArrayDistribution, A::AbstractMatrix)
 
 ## sampling
 
@@ -127,21 +133,21 @@ function rand!(rng::AbstractRNG, s::Sampleable{Matrixvariate},
     return X
 end
 
-# multiple matrix-variates, must allocate array of arrays
-rand(rng::AbstractRNG, s::Sampleable{Matrixvariate}, dims::Dims) =
-    rand!(rng, s, Array{Matrix{eltype(s)}}(undef, dims), true)
-rand(rng::AbstractRNG, s::Sampleable{Matrixvariate,Continuous}, dims::Dims) =
-    rand!(rng, s, Array{Matrix{float(eltype(s))}}(undef, dims), true)
+# multiple array-variates, must allocate array of arrays
+rand(rng::AbstractRNG, s::Sampleable{ArrayLikeVariate{N}}, dims::Dims) where N =
+    rand!(rng, s, Array{Array{N}{eltype(s)}}(undef, dims), true)
+rand(rng::AbstractRNG, s::Sampleable{ArrayLikeVariate{N},Continuous}, dims::Dims) where N =
+    rand!(rng, s, Array{Array{N}{float(eltype(s))}}(undef, dims), true)
 
-# single matrix-variate, must allocate one matrix
-rand(rng::AbstractRNG, s::Sampleable{Matrixvariate}) =
-    _rand!(rng, s, Matrix{eltype(s)}(undef, size(s)))
-rand(rng::AbstractRNG, s::Sampleable{Matrixvariate,Continuous}) =
-    _rand!(rng, s, Matrix{float(eltype(s))}(undef, size(s)))
+# single array-variate, must allocate one array
+rand(rng::AbstractRNG, s::Sampleable{ArrayLikeVariate{N}}) where N =
+    _rand!(rng, s, Array{eltype(s)}(undef, size(s)))
+rand(rng::AbstractRNG, s::Sampleable{ArrayLikeVariate{N},Continuous}) where N =
+    _rand!(rng, s, Array{float(eltype(s))}(undef, size(s)))
 
 # single matrix-variate with pre-allocated matrix
-function rand!(rng::AbstractRNG, s::Sampleable{Matrixvariate},
-               A::AbstractMatrix{<:Real})
+function rand!(rng::AbstractRNG, s::Sampleable{ArrayLikeVariate{N}},
+               A::AbstractArray{<:Real,N}) where N
     @boundscheck size(A) == size(s) ||
         throw(DimensionMismatch("Output size inconsistent with matrix size."))
     return _rand!(rng, s, A)
@@ -158,7 +164,7 @@ _pdf(d::MatrixDistribution, x::AbstractMatrix{T}) where {T<:Real} = exp(_logpdf(
 
 Compute the logarithm of the probability density at the input matrix `x`.
 """
-function logpdf(d::MatrixDistribution, x::AbstractMatrix{T}) where T<:Real
+function logpdf(d::ArrayDistribution{<:Any,N}, x::AbstractArray{T,N}) where {T<:Real,N}
     size(x) == size(d) ||
         throw(DimensionMismatch("Inconsistent array dimensions."))
     _logpdf(d, x)
@@ -169,73 +175,69 @@ end
 
 Compute the probability density at the input matrix `x`.
 """
-function pdf(d::MatrixDistribution, x::AbstractMatrix{T}) where T<:Real
+function pdf(d::ArrayDistribution{<:Any,N}, x::AbstractArray{T,N}) where {T<:Real,N}
     size(x) == size(d) ||
         throw(DimensionMismatch("Inconsistent array dimensions."))
     _pdf(d, x)
 end
 
-function _logpdf!(r::AbstractArray, d::MatrixDistribution, X::AbstractArray{M}) where M<:Matrix
-    for i = 1:length(X)
-        r[i] = logpdf(d, X[i])
-    end
+function _logpdf!(r::AbstractArray, d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
+    r .= logpdf.(Ref(d), X)
     return r
 end
 
-function _pdf!(r::AbstractArray, d::MatrixDistribution, X::AbstractArray{M}) where M<:Matrix
-    for i = 1:length(X)
-        r[i] = pdf(d, X[i])
-    end
+function _pdf!(r::AbstractArray, d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
+    r .= pdf.(Ref(d), X)
     return r
 end
 
-function logpdf!(r::AbstractArray, d::MatrixDistribution, X::AbstractArray{M}) where M<:Matrix
+function logpdf!(r::AbstractArray, d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
     length(X) == length(r) ||
         throw(DimensionMismatch("Inconsistent array dimensions."))
     _logpdf!(r, d, X)
 end
 
-function pdf!(r::AbstractArray, d::MatrixDistribution, X::AbstractArray{M}) where M<:Matrix
+function pdf!(r::AbstractArray, d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
     length(X) == length(r) ||
         throw(DimensionMismatch("Inconsistent array dimensions."))
     _pdf!(r, d, X)
 end
 
-function logpdf(d::MatrixDistribution, X::AbstractArray{<:AbstractMatrix{<:Real}})
+function logpdf(d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
     map(Base.Fix1(logpdf, d), X)
 end
 
-function pdf(d::MatrixDistribution, X::AbstractArray{<:AbstractMatrix{<:Real}})
+function pdf(d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
     map(Base.Fix1(pdf, d), X)
 end
 
 """
-    _logpdf(d::MatrixDistribution, x::AbstractArray)
+    _logpdf(d::ArrayDistribution{S,N}, x::AbstractArray{<:Real,N})
 
 Evaluate logarithm of pdf value for a given sample `x`. This function need not perform dimension checking.
 """
-_logpdf(d::MatrixDistribution, x::AbstractArray)
+_logpdf(d::ArrayDistribution{S,N}, x::AbstractArray{<:Real,N}) where {S,N}
 
 """
-    loglikelihood(d::MatrixDistribution, x::AbstractArray)
+    loglikelihood(d::ArrayDistribution, x::AbstractArray)
 
 The log-likelihood of distribution `d` with respect to all samples contained in array `x`.
 
 Here, `x` can be a matrix of size `size(d)`, a three-dimensional array with `size(d, 1)`
 rows and `size(d, 2)` columns, or an array of matrices of size `size(d)`.
 """
-loglikelihood(d::MatrixDistribution, X::AbstractMatrix{<:Real}) = logpdf(d, X)
+loglikelihood(d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:Real,N}) where N = logpdf(d, X)
 function loglikelihood(d::MatrixDistribution, X::AbstractArray{<:Real,3})
     (size(X, 1), size(X, 2)) == size(d) || throw(DimensionMismatch("Inconsistent array dimensions."))
     return sum(i -> _logpdf(d, view(X, :, :, i)), axes(X, 3))
 end
-function loglikelihood(d::MatrixDistribution, X::AbstractArray{<:AbstractMatrix{<:Real}})
+function loglikelihood(d::ArrayDistribution{<:Any,N}, X::AbstractArray{<:AbstractArray{<:Real,N}}) where N
     return sum(x -> logpdf(d, x), X)
 end
 
 #  for testing
-is_univariate(d::MatrixDistribution) = size(d) == (1, 1)
-check_univariate(d::MatrixDistribution) = is_univariate(d) || throw(ArgumentError("not 1 x 1"))
+is_univariate(d::ArrayDistribution{<:Any,N}) where N = prod(size(d)) == ntuple(_ -> 1, Val(N))
+check_univariate(d::ArrayDistribution) = is_univariate(d) || throw(ArgumentError("not 1 x 1"))
 
 ##### Specific distributions #####
 

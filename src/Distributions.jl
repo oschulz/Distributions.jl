@@ -43,6 +43,7 @@ export
     UnivariateDistribution,
     MultivariateDistribution,
     MatrixDistribution,
+    ArrayDistribution,
     NoncentralHypergeometric,
     NonMatrixDistribution,
     DiscreteDistribution,
@@ -277,7 +278,7 @@ include("genericfit.jl")
 include("univariates.jl")
 include("edgeworth.jl")
 include("multivariates.jl")
-include("matrixvariates.jl")
+include("arrayvariates.jl")
 include("samplers.jl")
 
 # others
